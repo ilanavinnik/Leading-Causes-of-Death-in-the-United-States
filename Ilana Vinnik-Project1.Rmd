@@ -1,0 +1,231 @@
+---
+title:  Leading Causes of Death in the United States
+author:
+  - name: Ilana Vinnik
+    address: Department of Statistics, Miami University
+column_numbers: 3
+logoleft_name: https&#58;//miamioh.edu/miami-brand/_files/images/system/logo-usage/minimum-size/primary-horizontal-stack-min-size.png
+primary_colour: "#b42e4c"
+secondary_colour: "#b42e4c"
+accent_colour: "#b42e4c"
+title_textcol: "#FDFEFE"  
+author_textcol: "#FDFEFE" 
+affiliation_textcol: "#c7af76"
+output: 
+  posterdown::posterdown_html:
+    self_contained: true
+bibliography: packages.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Introduction
+
+The latest data from the National Center for Health Statistics (NCHS), drawing from the National Vital Statistics System and CDC WONDER, provides insights into the leading causes of death in the United States from 1999 to 2017. Despite advancements in healthcare and public health initiatives, heart disease maintains its position as the primary cause of death, followed by cancer. 
+
+# Methods
+
+The data was gathered from the National Center for Health Statistics (NCHS) and CDC WONDER, analyzing mortality trends from 1999 to 2017. The data visualizations were analyzed using RStudio. A Bar plot, Choropleth map, Timeline plot, and Heatmap were created. Factors contributing to mortality rates, including lifestyle-related risk factors and advancements in medical technology, were considered.
+
+# Results
+
+Heart disease, encompassing various conditions such as coronary artery disease, heart attacks, and heart failure, continues to affect millions of Americans These cardiovascular diseases often stem from lifestyle factors such as poor diet, lack of exercise, and smoking. Despite improvements in management, coronary artery disease remains a significant health concern.The observed decrease in heart disease deaths around 2005 highlights the potential impact of interventions or medical advancements during that period, underscoring the importance of ongoing research and healthcare initiatives.
+
+Cancer ranks as the second leading cause of death, comprising a spectrum of diseases characterized by abnormal cell growth. While advancements in early detection and treatment have improved survival rates for some cancers, challenges remain, particularly with forms such as lung cancer, breast cancer, and colorectal cancer.
+
+High Mortality rates were observed in particularly in states like Mississippi and West Virginia in 2017. Overall, the United States has witnessed a decline in the death rate over the past two decades, attributed to advancements in medical technology, healthcare delivery, and public health interventions. These include breakthroughs in surgical techniques, pharmaceutical innovations, and awareness campaigns promoting healthy lifestyles.
+
+```{r, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(ggplot2)
+library(scales)
+library(maps)
+library(viridis)
+library(ggridges)
+#open and explore the data
+Data <- read_csv("~/Downloads/NCHS_-_Leading_Causes_of_Death__United_States.csv")
+head(Data) 
+names(Data)
+Data_cleaned <- select(Data, -`113 Cause Name`)
+head(Data_cleaned)
+str(Data_cleaned)
+
+
+#filter the data to State USA and all causes
+Data_USA <- filter(Data_cleaned, State == "United States" & `Cause Name` != "All causes")
+top_10_causes <- Data_USA %>%
+  group_by(`Cause Name`) %>%
+  summarise(TotalDeaths = sum(Deaths)) %>%
+  arrange(desc(TotalDeaths)) %>%
+  top_n(10)
+head(top_10_causes)
+
+
+theme_Ilana <- function() {
+theme(plot.title = element_text(hjust = 0.5, size = 20,face = "bold"),
+        text = element_text(family = "Times"),
+        axis.text.y = element_text(hjust = 0, color = "black", size = 15),
+        axis.ticks.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        plot.caption = element_text(hjust = 0, size = 8),
+        axis.line = element_line(color = "gray"),
+        plot.margin = margin(1, 1, 1, 2, "cm"),
+        legend.position = "none")
+} 
+
+#Extract the year with the rate
+Data_Clean_filtered <- filter(Data_cleaned, `Cause Name` == "All causes",State=="United States")
+Year_rate <- select(Data_Clean_filtered, Year, `Age-adjusted Death Rate`)
+head(Year_rate)
+
+#Filter data for 2017
+Data_Clean_filtered1<- filter(Data_cleaned, `Cause Name` == "All causes",Year==2017,State != "United States")
+Data_State <- select(Data_Clean_filtered1,State, Year, `Age-adjusted Death Rate`,Deaths)
+Data_State1 <- select(Data_Clean_filtered1,State, `Age-adjusted Death Rate`,Deaths)
+Data_State1$`Age-adjusted Death Rate` <- as.numeric(Data_State1$`Age-adjusted Death Rate`)
+head(Data_State1)
+
+# Define the color codes for blue, gray, and red tones
+blue_tones <- c("#446b93","#4b7198","#54789d","#5f7fa2","#6888a7","#738eaa","#7f98b1","#8ba0b5","#98a9bb","#a3b2bf","#b3bbc5","#c0c5c8")
+gray_tones <- c("#cfcfcf")
+red_tones <- c("#cdbec3","#ccafb7","#c89fab","#c48294","#c27388" ,"#bc5873", "#b84060", "#b42e4c")
+blue_palette <- colorRampPalette(blue_tones)(12)
+gray_palette <- colorRampPalette(gray_tones)(1)
+red_palette <- colorRampPalette(red_tones)(8)
+custom_colors <- c(blue_palette, gray_palette, red_palette)
+pie(rep(2, length(custom_colors)), col = custom_colors)
+
+
+#Get USA map
+us_states <- map_data("state")
+us_states$region <- tolower(us_states$region)
+Data_State1$State <- tolower(Data_State1$State)
+merged_data <- merge(us_states, Data_State1, by.x = "region", by.y = "State", all.x = TRUE)
+
+heart_disease_data <- filter(Data_cleaned, `Cause Name` == "Heart disease")
+
+state_abbreviations <- data.frame(
+  State = c("Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia", 
+            "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", 
+            "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", 
+            "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", 
+            "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming"),
+  Abbreviation = c("AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", 
+                   "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", 
+                   "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", 
+                   "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", 
+                   "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY")
+)
+
+# Replace state names with abbreviations
+heart_disease_data <- left_join(heart_disease_data, state_abbreviations, by = "State") %>%
+  select(-State) %>%
+  rename(State = Abbreviation)
+heart_disease_data <- heart_disease_data[!is.na(heart_disease_data$State), ]
+
+```
+
+
+```{r, out.width='80%', fig.align='center',fig.cap='Comparison of the 10 Leading Causes of Death in the United States. Heart Disease is the Leading Cause of Death in 2017', fig.height=5, warning=FALSE}
+# Create the horizontal bar plot
+ggplot(top_10_causes, aes(x = reorder(`Cause Name`, TotalDeaths), y = TotalDeaths, fill = `Cause Name`)) +
+  geom_bar(stat = "identity", width = 0.97) +
+  coord_flip() +
+  labs(title = "Number of Deaths for the 10 Leading Causes of Death, 2017",
+       x = " ",
+       y = " ") +
+  scale_fill_manual(values=c("#c0c5c8", "#bc5873","#c89fab", "#a3b2bf", "#b42e4c", "#8ba0b5", "#54789d", "#c27388", "#446b93", "#cdbec3")) +
+  scale_y_continuous(labels = comma_format(), expand = expansion(mult = c(0, 0.1))) +
+  theme_classic()  +
+  theme_Ilana()+
+  guides(fill = FALSE)
+```
+
+```{r, out.width='80%', fig.align='center',fig.cap='Geographical Distribution of Age-adjusted Death Rates in USA. Mississippi and West Virginia Show the Highest Death Rates in 2017 ', fig.height=5, warning=FALSE}
+#create a map
+ggplot(merged_data, aes(x = long, y = lat, group = group, fill = `Age-adjusted Death Rate`)) +
+  geom_polygon(color = "#484848", size = 0.1) +
+  coord_map() +
+  scale_fill_gradientn(colors = custom_colors, 
+                       name = "Legend for age-adjusted death rate per 100,000 U.S. standard population", 
+                       breaks = seq(0, max(merged_data$`Age-adjusted Death Rate`), by = 40)) + 
+  theme_void() +
+  labs(title = "Age-adjusted Death Rates for All causes, by State: 2017 ") +
+  theme(plot.title = element_text(hjust = 0.5, size = 20,face="bold"),
+        plot.caption = element_text(hjust = 0, size = 8),
+        text = element_text(family = "Times New Roman"),
+        legend.position = "bottom",
+        legend.title = element_text(size = 10),) +
+  guides(fill = guide_colorbar(title.position = "top", barwidth = 20),
+         keywidth = unit(5, "inches"))
+```
+
+```{r, out.width='80%', fig.align='center',fig.cap='Decreasing Trend of Age-adjusted Death Rates Over Time in the United States Over the Years 1997-2017', fig.height=5, warning=FALSE}
+#Create a timeline graph
+ggplot(Year_rate, aes(x = Year, y = `Age-adjusted Death Rate`)) +
+  geom_line(color = "#446b93", size = 1.5) +  
+  geom_point(color = "#54789d", size = 2) + 
+   geom_ribbon(aes(ymin = 60, ymax = `Age-adjusted Death Rate`), fill = "#b42e4c", alpha = 0.1)+
+  labs(title = "Age-adjusted Death Rates vs. Years",
+       x = " ",
+       y = "Rate per 100,000 U.S standard population") +
+  scale_y_continuous(limits = c(60, max(Year_rate$`Age-adjusted Death Rate`)),
+                     breaks = seq(60, 900, by = 60))+
+   scale_x_continuous(limits = c(1997, max(Year_rate$Year)),breaks = seq(1997, 2017, by = 2))+
+  theme_classic() + 
+  theme(text = element_text(family = "Times"),
+    plot.title=element_text(hjust=0.5,size=20,face="bold"),
+    axis.title = element_text(size=10),
+    axis.text = element_text(size = 15),
+    plot.caption = element_text(hjust = 0, size = 8),
+     axis.ticks.y = element_blank(),
+        axis.ticks.x = element_blank(),
+    axis.text.y = element_text(size = 10, hjust = 0.5))
+  
+```
+
+```{r, out.width='80%', fig.align='center',fig.cap='Heart Disease Death Rates Decrease Across U.S. States Over the Years 1997 to 2017', fig.height=5, warning=FALSE}
+ggplot(heart_disease_data, aes(x = Year, y = State, fill = `Age-adjusted Death Rate`)) +
+  geom_tile(color = "white", width = 1, height = 1.1) + 
+  scale_fill_gradientn(colors = custom_colors, 
+                       name = "Death Rate per 
+100,000 Population", na.value = "white") +  
+  labs(x = "", y = "", 
+       title = "Heart Disease Death Rates by State U.S.,1997-2017") +  
+  scale_x_continuous(breaks = seq(1997, 2017, by = 5), labels = seq(1997, 2017, by = 5), position = "top") +
+  geom_vline(xintercept = 2005, color = "black", linetype = "solid") +
+  theme_minimal() +
+  theme(
+    text = element_text(family = "Times"),
+    axis.text.y = element_text(angle = 0, hjust = 0.5, size = 7.5), 
+    axis.text.x = element_text(size = 15),
+    legend.position = "right",
+    panel.grid=element_blank(),
+    legend.title = element_text(size = 8),
+    axis.title.y = element_text(margin = margin(r = 0), color = "black"),  
+    plot.title = element_text(size = 20, hjust = 0.5, face = "bold"),
+    aspect.ratio = 1.7)+ 
+  guides(fill = guide_colorbar(title.position = "top", keywidth = unit(8, "cm")))  # Add vertical line after 2006
+
+```
+
+# Next Steps
+
+Continued efforts in public health interventions targeting lifestyle-related risk factors are crucial for further reducing mortality rates. Focusing on promoting healthy behaviors such as regular exercise, balanced nutrition, smoking cessation, and alcohol moderation will be essential in mitigating the prevalence of diseases like obesity, diabetes, and hypertension.Addressing regional inequalities in mortality rates, particularly in states like Mississippi and West Virginia, requires targeted interventions aimed at improving socioeconomic status, access to healthcare, and addressing the prevalence of chronic diseases.
+
+# Conclusion
+
+Heart disease and cancer persist as the leading causes of death in the United States, but progress has been made in reducing overall mortality rates. However, challenges remain, particularly in addressing regional disparities in mortality rates, as evidenced by states like Mississippi and West Virginia grappling with higher death rates. Moving forward, it is imperative to continue investing in medical research, public health interventions, and healthcare infrastructure to further mitigate the burden of chronic diseases and improve overall population health. Efforts should focus not only on preventing and treating diseases but also on addressing social determinants of health, such as socioeconomic status and access to healthcare, to ensure equitable health outcomes for all Americans.
+
+# References
+National Center for Health Statistics (NCHS) - www.cdc.gov/nchs/deaths.htm,
+
+American Heart Association - www.heart.org,
+
+World Health Organization (WHO)- https://www.who.int
+
